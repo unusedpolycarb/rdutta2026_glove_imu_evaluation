@@ -119,5 +119,17 @@ paired_subjects <- do.call(rbind, paired_subject_rows)
 write.csv(mean_results, file.path('../table4/table4_domain_means_CIs.csv'), row.names = FALSE)
 write.csv(paired_results, file.path('table5_paired_metric_tests.csv'), row.names = FALSE)
 write.csv(sd_results, file.path('../table6/table6_inter_pitcher_SD.csv'), row.names = FALSE)
-write.csv(paired_subjects, file.path('per_pitcher_paired_metrics.csv'), row.names = FALSE)
+
+paired_subjects <- merge(
+  paired_subjects,
+  paired_results[, c("model", "metric", "exact_permutation_p")],
+  by = c("model", "metric"),
+  sort = FALSE
+)
+
+write.csv(
+  paired_subjects,
+  '../figure6/per_pitcher_paired_metrics.csv',
+  row.names = FALSE
+)
 

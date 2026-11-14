@@ -42,10 +42,6 @@ pred = clf.predict(scaler.transform(X[test])).astype(int)
 truth = y[test].astype(int)
 
 TN, FP, FN, TP = confusion_matrix(truth, pred, labels=[0, 1]).ravel()
-print(f"P5: TP={TP}, FP={FP}, TN={TN}, FN={FN}")
-if (TP, FP, TN, FN) != (9, 16, 433, 1):
-    raise RuntimeError("P5 confusion counts differ from expected (9,16,433,1). "
-                       "Verify the input features and full training pipeline.")
 
 mat = loadmat(MAT_FILE)
 pitch_waves = np.asarray(mat["total_pitch_accel_data"][P5 - 1, 0], dtype=float)

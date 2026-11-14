@@ -7,9 +7,7 @@ from matplotlib.colors import Normalize, LinearSegmentedColormap
 
 DATA_DIR = Path(__file__).resolve().parent.parent
 
-df = pd.read_csv(
-    DATA_DIR / "table5" / "per_pitcher_paired_metrics.csv"
-)
+df = pd.read_csv("per_pitcher_paired_metrics.csv")
 
 models = ["z_threshold", "knn", "logistic"]
 metrics = ["sensitivity", "specificity", "precision",
@@ -23,6 +21,19 @@ df["pitcher"] = df["pitcher"].astype(str)
 df["pitcher"] = df["pitcher"].apply(
     lambda x: x if x.startswith("P") else f"P{x}"
 )
+
+pvalues = {}
+
+for (model, metric), group in df.groupby(["model", "metric"]):
+
+    p = group["exact_permutation_p"].to_numpy()
+
+    if not np.allclose(p, p[0]):
+        raise ValueError(
+            f"Inconsistent p-values for {model}, {metric}"
+        )
+
+    pvalues[(model, metric)] = p[0]
 
 heat = LinearSegmentedColormap.from_list(
     "heat",
@@ -46,7 +57,8 @@ plt.rcParams.update({
 })
 
 fig, axes = plt.subplots(
-    3, 1, figsize=(10.5, 18),
+    3, 1,
+    figsize=(11.5, 18),
     gridspec_kw={"hspace": 0.35}
 )
 
@@ -63,11 +75,34 @@ for ax, model, label in zip(axes, models, model_labels):
     values = pivot.to_numpy()
 
     im = ax.imshow(
-        values, cmap=heat, norm=norm, aspect="auto"
+        values,
+        cmap=heat,
+        norm=norm,
+        aspect="auto"
     )
 
-    ax.set_xticks(range(len(metrics)), metric_labels)
+    labels = []
+
+    for metric, metric_label in zip(metrics, metric_labels):
+
+        p = pvalues[(model, metric)]
+
+        if p < 0.05:
+            labels.append(metric_label + "*")
+        else:
+            labels.append(metric_label)
+
+    ax.set_xticks(range(len(metrics)), labels)
     ax.set_yticks(range(len(pitchers)), pitchers)
+
+    # Bold labels for significant comparisons
+    for j, tick_label in enumerate(ax.get_xticklabels()):
+
+        metric = metrics[j]
+        p = pvalues[(model, metric)]
+
+        if p < 0.05:
+            tick_label.set_fontweight("bold")
 
     ax.set_xlabel("Classification metric")
     ax.set_ylabel("Held-out pitcher")
@@ -75,13 +110,21 @@ for ax, model, label in zip(axes, models, model_labels):
 
     for i in range(len(pitchers)):
         for j in range(len(metrics)):
+
             rgba = heat(norm(values[i, j]))
             r, g, b = rgba[:3]
-            brightness = 0.299*r + 0.587*g + 0.114*b
-            text_color = "black" if brightness > 0.55 else "white"
+
+            brightness = (
+                0.299*r + 0.587*g + 0.114*b
+            )
+
+            text_color = (
+                "black" if brightness > 0.55 else "white"
+            )
 
             ax.text(
-                j, i, f"{values[i, j]:+.3f}",
+                j, i,
+                f"{values[i, j]:+.3f}",
                 ha="center",
                 va="center",
                 fontsize=10,
@@ -90,17 +133,28 @@ for ax, model, label in zip(axes, models, model_labels):
 
 fig.suptitle(
     "Per-pitcher paired performance differences (Frequency - Time)",
-    fontsize=17, y=0.98
+    fontsize=17,
+    y=0.98
 )
 
 cbar = fig.colorbar(
-    im, ax=axes, orientation="horizontal",
-    fraction=0.025, pad=0.06, shrink=0.65
+    im,
+    ax=axes,
+    orientation="vertical",
+    fraction=0.025,
+    pad=0.04,
+    shrink=0.75,
+    aspect=35
 )
-cbar.set_label("Paired performance difference")
+
+cbar.set_label(
+    "Paired performance difference",
+    fontsize=12
+)
+
 
 fig.savefig(
-    "figure7.png",
+    "figure6.png",
     dpi=600,
     bbox_inches="tight",
     facecolor="white"
